@@ -1,0 +1,17 @@
+{
+  "name": "senior",
+  "version": "1.0.0",
+  "homepage": "https://github.com/senioros/senior",
+  "authors": [
+    "Guido García <guido.garcia.bernardo@gmail.com>"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
