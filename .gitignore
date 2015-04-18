@@ -1,2 +1,4 @@
 node_modules
 *.log
+*.css
+bower_components

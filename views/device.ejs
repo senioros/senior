@@ -1,0 +1,343 @@
+<% layout('./layout') -%>
+
+<style>
+.list-group .list-group-item {
+    padding: 16px;
+}
+
+#contacts .list-group-item, .list-group-item a {
+    color: white;
+}
+</style>
+
+<script src='/bower_components/geopattern/js/geopattern.min.js'></script>
+
+<ul id="tabs" class="nav nav-tabs" style="margin-bottom: 1em;">
+    <li><a href="#contacts" data-toggle="tab">Agenda</a></li>
+    <li><a href="#location" data-toggle="tab">Localización</a></li>
+    <li><a href="#alerts" data-toggle="tab">Alertas</a></li>
+    <li><a href="#configuration" data-toggle="tab">Configuración</a></li>
+</ul>
+
+<!-- XXX improve active tab handling, use bootstrap functions -->
+<script>
+$(function() {
+    switch ("<%= facet %>") {
+        case "coordinates":
+            $("#location").addClass("active in");
+            break;
+        case "alerts":
+            $("#alerts").addClass("active in");
+            break;
+        case "battery":
+        case "sound":
+            $("#configuration").addClass("active in");
+            break;
+        case "contacts":
+        default:
+            $("#contacts").addClass("active in");
+            break;
+    }
+});
+</script>
+
+<div class="tab-content">
+    <div id="contacts" class="list-group tab-pane fade">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <% device.contacts.forEach(function(contact) { %>
+                <div class="list-group-item" id="contact-<%= contact.id %>">
+                    <div class="row-picture">
+                        <img class="circle" src="<%= contact.photo[0] %>" alt="icon">
+                    </div>
+                    <div class="row-content">
+                        <div class="least-content">
+                          <form id="contact-remove-form" method="post" action="/devices/<%= device.uid %>/contacts/<%= contact.id %>">
+                              <input type="hidden" name="_method" value="delete">
+                              <input type="submit" class="btn btn-sm btn-primary btn-raised" value="Borrar">
+                          </form>
+                        </div>
+                        <h4 class="list-group-item-heading">
+                        <a href="#" class="action-edit" data-id="<%= contact.id %>"><%= contact.givenName[0] %></a>
+                        </h4>
+                        <p class="list-group-item-text"><%= contact.tel[0].value %></p>
+                    </div>
+                </div>
+                <div class="list-group-separator"></div>
+
+                <script>
+                $("#contact-<%= contact.id %>").geopattern("<%= contact.id %>", {generator: 'xes'});
+
+                $(".action-edit[data-id='<%= contact.id %>']").click(function() {
+                    var source = $("#sidebar-template").html();
+                    var template = Handlebars.compile(source); // XXX might be cached
+                    var html = template({contact: <%- JSON.stringify(contact) %>}); // TODO FIX
+                    $("#sidebar").html(html);
+
+                    $("#contact-submit").geopattern("<%= contact.id %>", {generator: 'xes'});
+                })
+                </script>
+            <% }) %>
+
+            <div class="list-group-item">
+                <div class="row-content">
+                    <div class="least-content">
+                      <a href="#" class="btn btn-primary btn-raised"
+                         data-toggle="modal" data-target="#contact-add">Añadir contacto</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar" class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <!-- content is loaded dynamically from a handlebars template -->
+        </div>
+    </div>
+
+    <div id="location" class="container tab-pane fade">
+        <% if (device.status && device.status.coordinates) { %>
+            <p id="address" class="lead"></p>
+
+            <!-- TODO -->
+            <!--
+            <span class="mute">última actualización el 17 de abril a las 7:35 de la tarde</span>
+            -->
+
+            <a href="/devices/<%= device.uid %>/status/coordinates" class="btn btn-primary btn-raised">Actualizar la localización</a>
+
+            <style>
+                #map {
+                    width: 100%;
+                    height: 320px;
+                }
+            </style>
+
+            <script type="text/javascript"
+                    src="http://maps.googleapis.com/maps/api/js?key=<%= config.googlemaps_key %>&sensor=true">
+            </script>
+
+            <script type="text/javascript">
+                $(function() {
+                    var position = new google.maps.LatLng(<%= device.status.coordinates.latitude %>, <%= device.status.coordinates.longitude %>);
+                    var options = {
+                        center: position,
+                        zoom: 13,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
+                    };
+
+                    var map = new google.maps.Map(document.getElementById("map"), options);
+
+                    var marker = new google.maps.Marker({
+                        position: position,
+                        map: map,
+                        title: "Última posición"
+                    });
+
+                    var geocoder = new google.maps.Geocoder();
+                    geocoder.geocode({'latLng': position}, function(results, status) {
+                        if (status === google.maps.GeocoderStatus.OK) {
+                            if (results[1]) {
+                                marker.title = results[1].formatted_address;
+                                $("#address").text(results[1].formatted_address);
+                            }
+                        }
+                    });
+
+                    // XXX ugly trick to make gmaps compatible with bootstrap fluid containers
+                    // see http://stackoverflow.com/a/11445615/12388
+                    google.maps.event.trigger(map, 'resize');
+                    map.setZoom(map.getZoom());
+
+                    $("#tabs").on('shown.bs.tab', function() {
+                    	   google.maps.event.trigger(map, 'resize');
+                         map.setZoom(map.getZoom());
+                         $(window).resize();
+                    });
+
+                    $(window).resize(function() {
+                        var h = $(window).height();
+                        var offsetTop = 240; // XXX calculate the top offset
+
+                        $('#map').css('height', (h - offsetTop));
+                    });
+                });
+            </script>
+
+            <div id="map"></div>
+        <% } else { %>
+            <p class="lead">
+                Todavía no se ha consultado la localización del teléfono.
+            </p>
+
+            <a href="/devices/<%= device.uid %>/status/coordinates" class="btn btn-primary btn-raised">Consultar la localización</a>
+        <% } %>
+    </div>
+
+    <div id="alerts" class="container tab-pane fade">
+        <div class="list-group">
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-social-cake"></i>
+                </div>
+                <div class="row-content">
+                    <div class="least-content">el 30 de agosto, cada año</div>
+                    <h4 class="list-group-item-heading">Cumpleaños</h4>
+                    <p class="list-group-item-text">Mi nieta María cumple 12 años.</p>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-maps-local-hospital"></i>
+                </div>
+                <div class="row-content">
+                    <div class="least-content">cada día a las 9am</div>
+                    <h4 class="list-group-item-heading">Medicina</h4>
+                    <p class="list-group-item-text">Tomar la pastilla de la tensión.</p>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-social-domain"></i>
+                </div>
+                <div class="row-content">
+                    <div class="least-content">lunes 20 a las 9:45</div>
+                    <h4 class="list-group-item-heading">Cita médica</h4>
+                    <p class="list-group-item-text">Cita con el médico en el Hostpital Rio Ortega.</p>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+        </div>
+    </div>
+
+    <div id="configuration" class="container tab-pane fade">
+        <div class="list-group">
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-action-assessment"></i>
+                </div>
+                <div class="row-content">
+                    <div class="least-content">
+                        <a href="/devices/<%= device.uid %>/status/battery" class="btn btn-sm btn-primary btn-raised">Actualizar</a>
+                    </div>
+
+                    <% if (device.status && device.status.battery) { %>
+                        <h4 class="list-group-item-heading">Batería al <%= Math.round(device.status.battery.level * 100) %>%</h4>
+                        <% if (device.status.battery.charging) { %>
+                            <p class="list-group-item-text">La batería se está cargando.</p>
+                        <% } else { %>
+                            <p class="list-group-item-text">La batería no se está cargando.</p>
+                        <% } %>
+                    <% } else { %>
+                        <h4 class="list-group-item-heading">Carga de la batería desconocida.</h4>
+                    <% } %>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-av-volume-off"></i>
+                </div>
+                <div class="row-content">
+                    <div class="least-content">
+                        <a href="/devices/<%= device.uid %>/status/sound" class="btn btn-sm btn-primary btn-raised">Actualizar</a>
+                    </div>
+
+                    <% if (device.status && device.status.sound) { %>
+                        <% if (device.status.sound.volume === 0) { %>
+                            <h4 class="list-group-item-heading">Sonido apagado</h4>
+                            <p class="list-group-item-text">El sonido del teléfono ha sido apagado.</p>
+                        <% } else { %>
+                            <h4 class="list-group-item-heading">Sonido encendido</h4>
+                            <p class="list-group-item-text">El sonido del teléfono se encuentra al <%= Math.round(device.status.sound.volume / 15 * 100) %>%.</p>
+                        <% } %>
+                    <% } else { %>
+                        <h4 class="list-group-item-heading">Volumen del teléfono desconocido.</h4>
+                    <% } %>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+            <div class="list-group-item">
+                <div class="row-action-primary">
+                    <i class="mdi-toggle-check-box"></i>
+                </div>
+                <div class="row-content">
+                    <h4 class="list-group-item-heading">Permitir llamadas anónimas</h4>
+                    <p class="list-group-item-text">Se permite recibir llamadas de teléfonos que no estén en la agenda.</p>
+                </div>
+            </div>
+            <div class="list-group-separator"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" role="dialog" id="contact-add">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h4 class="modal-title">Añadir un nuevo contacto</h4>
+            </div>
+            <div class="modal-body">
+                <form id="contact-add-form" method="post" action="/devices/<%= device.uid %>/contacts">
+                    <div class="form-group">
+                        <input type="text" maxlength="12" required class="form-control login-field" id="contact-name" name="name" value="" placeholder="Nombre" />
+                        <label class="login-field-icon" for="contact-name"></label>
+                    </div>
+
+                    <div class="form-group">
+                        <input type="number" maxlength="12" required class="form-control login-field" id="contact-msisdn" name="msisdn" value="" placeholder="Número de teléfono" />
+                        <label class="login-field-icon" for="contact-msisdn"></label>
+                    </div>
+
+                    <!-- TODO upload image -->
+                    <div class="form-group">
+                        <input type="url" required class="form-control login-field" id="contact-photo" name="photo" placeholder="Dirección de la foto" />
+                        <label class="login-field-icon" for="contact-photo"></label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="contact-submit">Guardar contacto</button>
+                <script>
+                    $("#contact-submit").click(function() {
+                        $("#contact-add-form").submit();
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/bower_components/handlebars/handlebars.min.js"></script>
+
+<script id="sidebar-template" type="text/x-handlebars-template">
+    <form id="contact-add-form" method="post" action="/devices/<%= device.uid %>/contacts/{{ contact.id }}">
+        <input type="hidden" name="_method" value="put">
+
+        <img id="contact-edit-photo-preview"
+             class="img-responsive pull-right col-xs-12 col-sm-6 col-md-6 col-lg-6" src="{{ contact.photo }}">
+
+        <div class="clearfix form-group">
+            <input type="text" maxlength="12" required class="form-control login-field" id="contact-edit-name" name="name" value="{{ contact.givenName }}" placeholder="Nombre" />
+            <label class="login-field-icon" for="contact-edit-name"></label>
+        </div>
+
+        <div class="form-group">
+            <input type="number" maxlength="12" required class="form-control login-field" id="contact-edit-msisdn" name="msisdn" value="{{ contact.tel.[0].value }}" placeholder="Número de teléfono" />
+            <label class="login-field-icon" for="contact-edit-msisdn"></label>
+        </div>
+
+        <!-- TODO upload image -->
+        <div class="form-group">
+            <input type="url" required class="form-control login-field" id="contact-edit-photo" name="photo" value="{{ contact.photo }}" placeholder="Dirección de la foto" />
+            <label class="login-field-icon" for="contact-edit-photo"></label>
+        </div>
+
+        <!--
+        <button type="button" class="btn btn-default">Cancelar</button>
+        -->
+        <button type="submit" class="btn btn-primary" id="contact-submit">Actualizar contacto</button>
+    </form>
+</script>

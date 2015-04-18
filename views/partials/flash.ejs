@@ -1,0 +1,17 @@
+<% if (flash_error && flash_error.length > 0) { %>
+    <div class="alert alert-dismissable alert-warning">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <% flash_error.forEach(function(message) { %>
+            <p><%- message %></p>
+        <% }) %>
+    </div>
+<% } %>
+
+<% if (flash_info && flash_info.length > 0) { %>
+    <div class="alert alert-dismissable alert-success">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <% flash_info.forEach(function(message) { %>
+            <p><%- message %></p>
+        <% }) %>
+    </div>
+<% } %>

@@ -1,8 +1,1 @@
-body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
-}
-
-a {
-  color: #00B7FF;
-}
+.card{margin:0 auto;text-align:center;color:white}.card a{color:white;outline:none}.card .card-image{cursor:pointer}footer{color:gray;text-align:center;margin:0 auto}

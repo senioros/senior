@@ -1,0 +1,32 @@
+<% layout('./layout') -%>
+
+<script src='/bower_components/geopattern/js/geopattern.min.js'></script>
+
+<div class="container">
+    <div class="row">
+        <% devices.forEach(function(device) { %>
+        <div class="col-xs-12 col-sm-6 col-md-4 col-lg-3">
+            <div class="card" id="device-<%= device.uid %>">
+                <div class="card-height-indicator"></div>
+
+                <div class="card-content">
+                    <a href="/devices/<%= device.uid %>">
+                        <div class="card-image">
+                            <h1><%= device.name %></h1>
+                        </div>
+                    </a>
+                    <div class="card-body">
+                        <p class='lead'><%= device.msisdn %></p>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            $("#device-<%= device.uid %>").geopattern("<%= device.uid %>", { generator: 'xes'});
+            </script>
+        </div>
+        <% }) %>
+    </div>
+</div>
+
+<!-- TODO use a color with good contrast depending on geopattern.color -->
